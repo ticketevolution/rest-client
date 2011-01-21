@@ -143,6 +143,8 @@ module RestClient
     class Multipart < Base
       EOL = "\r\n"
 
+      attr_reader :stream
+
       def build_stream(params)
         b = "--#{boundary}"
 
