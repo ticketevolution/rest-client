@@ -21,7 +21,7 @@ module RestClient
               305 => 'Use Proxy', # http/1.1
               306 => 'Switch Proxy', # no longer used
               307 => 'Temporary Redirect', # http/1.1
-              
+
               400 => 'Bad Request',
               401 => 'Unauthorized',
               402 => 'Payment Required',
@@ -40,13 +40,16 @@ module RestClient
               415 => 'Unsupported Media Type',
               416 => 'Requested Range Not Satisfiable',
               417 => 'Expectation Failed',
-              418 => 'I\'m A Teapot',
+              418 => 'I\'m A Teapot', #RFC2324
               421 => 'Too Many Connections From This IP',
               422 => 'Unprocessable Entity', #WebDAV
               423 => 'Locked', #WebDAV
               424 => 'Failed Dependency', #WebDAV
               425 => 'Unordered Collection', #WebDAV
-              426 => 'Upgrade Required', 
+              426 => 'Upgrade Required',
+              428 => 'Precondition Required', #RFC6585
+              429 => 'Too Many Requests', #RFC6585
+              431 => 'Request Header Fields Too Large', #RFC6585
               449 => 'Retry With', #Microsoft
               450 => 'Blocked By Windows Parental Controls', #Microsoft
 
@@ -59,7 +62,9 @@ module RestClient
               506 => 'Variant Also Negotiates',
               507 => 'Insufficient Storage', #WebDAV
               509 => 'Bandwidth Limit Exceeded', #Apache
-              510 => 'Not Extended'}
+              510 => 'Not Extended',
+              511 => 'Network Authentication Required', # RFC6585
+  }
 
   # Compatibility : make the Response act like a Net::HTTPResponse when needed
   module ResponseForException
@@ -81,10 +86,11 @@ module RestClient
   # probably an HTML error page) is e.response.
   class Exception < RuntimeError
     attr_accessor :response
-    attr_writer   :message
+    attr_writer :message
 
     def initialize response = nil, initial_response_code = nil
       @response = response
+      @message = nil
       @initial_response_code = initial_response_code
 
       # compatibility: this make the exception behave like a Net::HTTPResponse
@@ -111,7 +117,7 @@ module RestClient
     def to_s
       inspect
     end
-    
+
     def message
       @message || self.class.name
     end
@@ -154,7 +160,9 @@ module RestClient
   # A redirect was encountered; caught by execute to retry with the new url.
   class Redirect < Exception
 
-    message = 'Redirect'
+    def message
+      'Redirect'
+    end
 
     attr_accessor :url
 
@@ -163,8 +171,10 @@ module RestClient
     end
   end
 
-  class MaxRedirectsReached < Exception	
-    message = 'Maximum number of redirect reached'	
+  class MaxRedirectsReached < Exception
+    def message
+      'Maximum number of redirect reached'
+    end
   end
 
   # The server broke the connection prior to the request completing.  Usually
@@ -185,8 +195,8 @@ module RestClient
   end
 end
 
-# backwards compatibility
 class RestClient::Request
+  # backwards compatibility
   Redirect = RestClient::Redirect
   Unauthorized = RestClient::Unauthorized
   RequestFailed = RestClient::RequestFailed
