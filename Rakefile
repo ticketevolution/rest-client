@@ -1,59 +1,110 @@
-require 'rake'
+# load `rake build/install/release tasks'
+require 'bundler/setup'
+require_relative './lib/restclient/version'
 
-require 'jeweler'
-
-Jeweler::Tasks.new do |s|
-  s.name = "rest-client"
-  s.description = "A simple HTTP and REST client for Ruby, inspired by the Sinatra microframework style of specifying actions: get, put, post, delete."
-  s.summary = "Simple HTTP and REST client for Ruby, inspired by microframework syntax for specifying actions."
-  s.authors = ["Adam Wiggins", "Julien Kirch"]
-  s.email = "rest.client@librelist.com"
-  s.homepage = "http://github.com/archiloque/rest-client"
-  s.files = FileList["[A-Z]*", "{bin,lib,spec}/**/*"]
-  s.test_files = FileList["{spec}/**/*"]
-  s.add_runtime_dependency("mime-types", ">= 1.16")
-  s.add_development_dependency("webmock", ">= 0.9.1")
-  s.add_development_dependency("rspec")
-  s.extra_rdoc_files = [ 'README.rdoc', 'history.md']
+namespace :ruby do
+  Bundler::GemHelper.install_tasks(:name => 'rest-client')
 end
 
-############################
-
-require 'spec/rake/spectask'
+require "rspec/core/rake_task"
 
 desc "Run all specs"
-task :spec => ["spec:unit", "spec:integration"]
+RSpec::Core::RakeTask.new('spec')
 
 desc "Run unit specs"
-Spec::Rake::SpecTask.new('spec:unit') do |t|
-  t.spec_opts = ['--colour --format progress --loadby mtime --reverse']
-  t.spec_files = FileList['spec/*_spec.rb']
+RSpec::Core::RakeTask.new('spec:unit') do |t|
+  t.pattern = 'spec/unit/*_spec.rb'
 end
 
 desc "Run integration specs"
-Spec::Rake::SpecTask.new('spec:integration') do |t|
-  t.spec_opts = ['--colour --format progress --loadby mtime --reverse']
-  t.spec_files = FileList['spec/integration/*_spec.rb']
+RSpec::Core::RakeTask.new('spec:integration') do |t|
+  t.pattern = 'spec/integration/*_spec.rb'
 end
 
 desc "Print specdocs"
-Spec::Rake::SpecTask.new(:doc) do |t|
-  t.spec_opts = ["--format", "specdoc", "--dry-run"]
-  t.spec_files = FileList['spec/*_spec.rb']
+RSpec::Core::RakeTask.new(:doc) do |t|
+  t.rspec_opts = ["--format", "specdoc", "--dry-run"]
+  t.pattern = 'spec/**/*_spec.rb'
 end
 
 desc "Run all examples with RCov"
-Spec::Rake::SpecTask.new('rcov') do |t|
-  t.spec_files = FileList['spec/*_spec.rb']
+RSpec::Core::RakeTask.new('rcov') do |t|
+  t.pattern = 'spec/*_spec.rb'
   t.rcov = true
   t.rcov_opts = ['--exclude', 'examples']
 end
 
-task :default => :spec
+task :default do
+  sh 'rake -T'
+end
+
+def alias_task(alias_task, original)
+  desc "Alias for rake #{original}"
+  task alias_task, Rake.application[original].arg_names => original
+end
+alias_task(:test, :spec)
 
 ############################
 
-require 'rake/rdoctask'
+WindowsPlatforms = %w{x86-mingw32 x64-mingw32 x86-mswin32}
+
+namespace :all do
+
+  desc "Build rest-client #{RestClient::VERSION} for all platforms"
+  task :build => ['ruby:build'] + \
+    WindowsPlatforms.map {|p| "windows:#{p}:build"}
+
+  desc "Create tag v#{RestClient::VERSION} and for all platforms build and push " \
+    "rest-client #{RestClient::VERSION} to Rubygems"
+  task :release => ['build', 'ruby:release'] + \
+    WindowsPlatforms.map {|p| "windows:#{p}:push"}
+
+end
+
+namespace :windows do
+  spec_path = File.join(File.dirname(__FILE__), 'rest-client.windows.gemspec')
+
+  WindowsPlatforms.each do |platform|
+    namespace platform do
+      gem_filename = "rest-client-#{RestClient::VERSION}-#{platform}.gem"
+      base = File.dirname(__FILE__)
+      pkg_dir = File.join(base, 'pkg')
+      gem_file_path = File.join(pkg_dir, gem_filename)
+
+      desc "Build #{gem_filename} into the pkg directory"
+      task 'build' do
+        orig_platform = ENV['BUILD_PLATFORM']
+        begin
+          ENV['BUILD_PLATFORM'] = platform
+
+          sh("gem build -V #{spec_path}") do |ok, res|
+            if ok
+              FileUtils.mkdir_p(pkg_dir)
+              FileUtils.mv(File.join(base, gem_filename), pkg_dir)
+              Bundler.ui.confirm("rest-client #{RestClient::VERSION} " \
+                                 "built to pkg/#{gem_filename}")
+            else
+              abort "Command `gem build` failed: #{res}"
+            end
+          end
+
+        ensure
+          ENV['BUILD_PLATFORM'] = orig_platform
+        end
+      end
+
+      desc "Push #{gem_filename} to Rubygems"
+      task 'push' do
+        sh("gem push #{gem_file_path}")
+      end
+    end
+  end
+
+end
+
+############################
+
+require 'rdoc/task'
 
 Rake::RDocTask.new do |t|
   t.rdoc_dir = 'rdoc'
@@ -63,4 +114,3 @@ Rake::RDocTask.new do |t|
   t.rdoc_files.include('README.rdoc')
   t.rdoc_files.include('lib/*.rb')
 end
-

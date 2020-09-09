@@ -1,4 +1,88 @@
+# 1.8.0
+
+- Security: implement standards compliant cookie handling by adding a
+  dependency on http-cookie. This breaks compatibility, but was necessary to
+  address a session fixation / cookie disclosure vulnerability.
+  (#369 / CVE-2015-1820)
+
+  Previously, any Set-Cookie headers found in an HTTP 30x response would be
+  sent to the redirection target, regardless of domain. Responses now expose a
+  cookie jar and respect standards compliant domain / path flags in Set-Cookie
+  headers.
+
+# 1.7.3
+
+- Security: redact password in URI from logs (#349 / OSVDB-117461)
+- Drop monkey patch on MIME::Types (added `type_for_extension` method, use
+  the public interface instead.
+
+# 1.7.2
+
+- Ignore duplicate certificates in CA store on Windows
+
+# 1.7.1
+
+- Relax mime-types dependency to continue supporting mime-types 1.x series.
+  There seem to be a large number of popular gems that have depended on
+  mime-types '~> 1.16' until very recently.
+- Improve urlencode performance
+- Clean up a number of style points
+
+# 1.7.0
+
+- This release drops support for Ruby 1.8.7 and breaks compatibility in a few
+  other relatively minor ways
+- Upgrade to mime-types ~> 2.0
+- Don't CGI.unescape cookie values sent to the server (issue #89)
+- Add support for reading credentials from netrc
+- Lots of SSL changes and enhancements: (#268)
+  - Enable peer verification by default (setting `VERIFY_PEER` with OpenSSL)
+  - By default, use the system default certificate store for SSL verification,
+    even on Windows (this uses a separate Windows build that pulls in ffi)
+  - Add support for SSL `ca_path`
+  - Add support for SSL `cert_store`
+  - Add support for SSL `verify_callback` (with some caveats for jruby, OS X, #277)
+  - Add support for SSL ciphers, and choose secure ones by default
+- Run tests under travis
+- Several other bugfixes and test improvements
+  - Convert Errno::ETIMEDOUT to RestClient::RequestTimeout
+  - Handle more HTTP response codes from recent standards
+  - Save raw responses to binary mode tempfile (#110)
+  - Disable timeouts with :timeout => nil rather than :timeout => -1
+  - Drop all Net::HTTP monkey patches
+
+# 1.6.8
+
+- The 1.6.x series will be the last to support Ruby 1.8.7
+- Pin mime-types to < 2.0 to maintain Ruby 1.8.7 support
+- Add Gemfile, AUTHORS, add license to gemspec
+- Point homepage at https://github.com/rest-client/rest-client
+- Clean up and fix various tests and ruby warnings
+- Backport `ssl_verify_callback` functionality from 1.7.0
+
+# 1.6.7
+
+- rebuild with 1.8.7 to avoid https://github.com/rubygems/rubygems/pull/57
+
+# 1.6.6
+
+- 1.6.5 was yanked
+
+# 1.6.5
+
+- RFC6265 requires single SP after ';' for separating parameters pairs in the 'Cookie:' header (patch provided by Hiroshi Nakamura)
+- enable url parameters for all actions
+- detect file parameters in arrays
+- allow disabling the timeouts by passing -1 (patch provided by Sven Böhm)
+
+# 1.6.4
+
+- fix restclient script compatibility with 1.9.2
+- fix unlinking temp file (patch provided by Evan Smith)
+- monkeypatching ruby for http patch method (patch provided by Syl Turner)
+
 # 1.6.3
+
 - 1.6.2 was yanked
 
 # 1.6.2

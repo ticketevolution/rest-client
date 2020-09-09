@@ -1,6 +1,7 @@
-.idea
-doc
-rdoc
-pkg
 *.gem
-scratchpad.rb
+/Gemfile.lock
+/.bundle
+/vendor
+/doc
+/pkg
+/rdoc

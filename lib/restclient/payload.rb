@@ -9,14 +9,14 @@ module RestClient
     def generate(params)
       if params.is_a?(String)
         Base.new(params)
-      elsif params.respond_to?(:read)
-        Streamed.new(params)
-      elsif params
+      elsif params.is_a?(Hash)
         if params.delete(:multipart) == true || has_file?(params)
           Multipart.new(params)
         else
           UrlEncoded.new(params)
         end
+      elsif params.respond_to?(:read)
+        Streamed.new(params)
       else
         nil
       end
@@ -25,10 +25,25 @@ module RestClient
     def has_file?(params)
       params.any? do |_, v|
         case v
-          when Hash
-            has_file?(v)
-          else
-            v.respond_to?(:path) && v.respond_to?(:read)
+        when Hash
+          has_file?(v)
+        when Array
+          has_file_array?(v)
+        else
+          v.respond_to?(:path) && v.respond_to?(:read)
+        end
+      end
+    end
+
+    def has_file_array?(params)
+      params.any? do |v|
+        case v
+        when Hash
+          has_file?(v)
+        when Array
+          has_file_array?(v)
+        else
+          v.respond_to?(:path) && v.respond_to?(:read)
         end
       end
     end
@@ -70,7 +85,7 @@ module RestClient
         result = []
         value.each do |elem|
           if elem.is_a? Hash
-            result +=  flatten_params(elem, calculated_key)
+            result += flatten_params(elem, calculated_key)
           elsif elem.is_a? Array
             result += flatten_params_array(elem, calculated_key)
           else
@@ -91,7 +106,7 @@ module RestClient
       alias :length :size
 
       def close
-        @stream.close
+        @stream.close unless @stream.closed?
       end
 
       def inspect
@@ -132,12 +147,15 @@ module RestClient
 
       # for UrlEncoded escape the keys
       def handle_key key
-        URI.escape(key.to_s, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
+        Parser.escape(key.to_s, Escape)
       end
 
       def headers
         super.merge({'Content-Type' => 'application/x-www-form-urlencoded'})
       end
+
+      Parser = URI.const_defined?(:Parser) ? URI::Parser.new : URI
+      Escape = Regexp.new("[^#{URI::PATTERN::UNRESERVED}]")
     end
 
     class Multipart < Base
@@ -188,7 +206,7 @@ module RestClient
           s.write(" filename=\"#{v.respond_to?(:original_filename) ? v.original_filename : File.basename(v.path)}\"#{EOL}")
           s.write("Content-Type: #{v.respond_to?(:content_type) ? v.content_type : mime_for(v.path)}#{EOL}")
           s.write(EOL)
-          while data = v.read(8124)
+          while (data = v.read(8124))
             s.write(data)
           end
         ensure

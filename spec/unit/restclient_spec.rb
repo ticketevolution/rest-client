@@ -1,4 +1,4 @@
-require File.join( File.dirname(File.expand_path(__FILE__)), 'base')
+require 'spec_helper'
 
 describe RestClient do
   describe "API" do
@@ -63,11 +63,17 @@ describe RestClient do
 
     it "append the log to the requested filename" do
       RestClient.log = '/tmp/restclient.log'
-      f = mock('file handle')
+      f = double('file handle')
       File.should_receive(:open).with('/tmp/restclient.log', 'a').and_yield(f)
       f.should_receive(:puts).with('xyz')
       RestClient.log << 'xyz'
     end
   end
 
+  describe 'version' do
+    it 'has a version ~> 1.8.0.alpha' do
+      ver = Gem::Version.new(RestClient.version)
+      Gem::Requirement.new('~> 1.8.0.alpha').should be_satisfied_by(ver)
+    end
+  end
 end
